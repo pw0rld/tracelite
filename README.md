@@ -32,7 +32,7 @@ npm run verify:package
 
 产物位于 `dist/`：平铺的 `TraceLite-v版本号.zip`、只包含项目源码的 `TraceLite-v版本号-source.zip`，以及 `SHA256SUMS.txt`。源码包和安装包都不会包含本机检测报告、协作会话、浏览器资料或密钥。macOS 进入 ZIP 所在目录后，可用 `shasum -a 256 -c SHA256SUMS.txt` 核对下载。
 
-每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
+每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
 
 创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.1`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
 

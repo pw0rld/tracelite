@@ -84,10 +84,16 @@ jobs:
           with zipfile.ZipFile(f'dist/TraceLite-v{version}.zip') as archive:
               archive.extractall(destination)
           PY
-      - name: Install Chinese fonts for screenshots
+      - name: Prepare Chinese fonts for screenshots (best effort)
+        timeout-minutes: 1
+        continue-on-error: true
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          if [ -n "$(fc-list :lang=zh file)" ]; then
+            exit 0
+          fi
+          sudo timeout 50s apt-get -o Acquire::Retries=0 \
+            -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 \
+            install -y --no-install-recommends fonts-noto-cjk
       - name: Test the unpacked extension in a disposable Chrome profile
         env:
           CHROME_BIN: google-chrome
