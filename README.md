@@ -5,11 +5,11 @@
 
 面向 **Mac + Chrome + Shadowrocket（小火箭）** 的本地 Manifest V3 扩展。安装后通过 Chrome 原生设置减少追踪和 WebRTC 绕过代理的风险；系统 DNS、VPN 路由和浏览器指纹仍需分别处理。
 
-**v0.9.1 调整为暖白底、白色卡片与单一低饱和绿强调的轻量界面，去掉卡通角色、粉彩分区与俏皮文案。** 只提供 400×600 小弹窗；基础设置、地区编辑和权限说明都收在弹窗内的小抽屉，不打开独立网站或大管理页。追踪拦截、链接清理、缓存／数据分离清理及暂停恢复继续保留，后台功能与权限保持原有范围。
+**v0.9.2 提供自动 CI、经过检查的安装 ZIP 与源码 ZIP。** 界面采用暖白底、白色卡片与低饱和绿，只提供 400×600 小弹窗；基础设置、地区编辑和权限说明都收在弹窗内的小抽屉，不打开独立网站或大管理页。追踪拦截、链接清理、缓存／数据分离清理及暂停恢复继续保留。
 
 ## 安装与恢复
 
-从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.1.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
+从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.2.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
 
 1. 在 Chrome 地址栏打开 `chrome://extensions`，开启右上角“开发者模式”。
 2. 点击“加载已解压的扩展程序”：安装包选择解压后直接包含 `manifest.json` 的文件夹；克隆源码则选择项目内的 `extension/`。
@@ -34,7 +34,7 @@ npm run verify:package
 
 每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
 
-创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.1`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
+创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.2`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
 
 暂停保护会清除**本扩展自己的设置覆盖**，恢复由 Chrome、用户、策略和其他扩展决定的值，而非强制把项目改为开启。恢复保护会重新应用所选设置。禁用或卸载扩展也会撤销其 ChromeSetting 覆盖。[设置生命周期](https://developer.chrome.com/docs/extensions/reference/api/types)
 
