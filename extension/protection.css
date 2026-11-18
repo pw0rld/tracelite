@@ -1,0 +1,30 @@
+.protection-intro { margin-top: 6px; }
+.protection-option { padding: 13px 0; border-bottom: 1px solid var(--line); }
+.protection-option label { font-weight: 600; }
+.protection-option .hint { margin-left: 26px; }
+#protection-state { margin-top: 11px; white-space: pre-line; }
+.protection-site-exception { margin-top: 12px; padding: 11px 12px; border-radius: 12px; background: var(--surface-soft); }
+.protection-site-exception label { font-size: 12px; }
+#protection-exception-host { margin-left: 26px; overflow-wrap: anywhere; }
+#protection-retry { margin-top: 10px; }
+.protection-error { margin: 10px 0 0; padding: 10px 11px; border-radius: 11px; white-space: pre-line; overflow-wrap: anywhere; color: #995028; background: #fff6ef; font-size: 12px; }
+.protection-details { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.protection-details p { font-size: 12px; }
+#protection-exceptions { list-style: none; padding: 0; margin: 12px 0 0; }
+#protection-exceptions li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+#protection-exceptions .exception-domain { overflow-wrap: anywhere; min-width: 0; font-size: 12px; color: var(--muted); }
+#protection-exceptions button { flex: none; min-height: 30px; padding: 4px 9px; }
+.site-cleanup { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.site-cleanup h3 { margin: 0; font-size: 13px; font-weight: 650; }
+#cleanup-scope { margin-top: 6px; overflow-wrap: anywhere; }
+.cleanup-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 11px 0 8px; }
+.cleanup-result { margin: 11px 0 0; padding: 10px 11px; border-radius: 12px; white-space: pre-line; overflow-wrap: anywhere; background: var(--accent-soft); color: var(--text); font-size: 12px; }
+.cleanup-result.is-warning { background: #fff6ef; color: #995028; }
+#cleanup-recheck { margin-top: 9px; }
+footer .extension-version { margin-left: 6px; font-size: 10px; opacity: .8; }
+.manage-view .protection-option { padding: 15px 0; }
+.manage-view .site-cleanup { margin-top: 20px; padding-top: 18px; }
+.manage-view .site-cleanup h3 { font-size: 14px; }
+@media (prefers-color-scheme: dark) {
+  .protection-error, .cleanup-result.is-warning { color: #f4c3a5; background: #4a3025; }
+}

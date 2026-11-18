@@ -1,0 +1,40 @@
+#region-panel { background: var(--surface); }
+.region-intro { margin-top: 5px; }
+body:not(.manage-view) .region-intro { display: none; }
+.region-selection { display: flex; gap: 8px; margin: 13px 0 8px; align-items: center; }
+#region-profile { flex: 1; min-width: 0; }
+#region-panel select, #region-panel input[type="text"] { width: 100%; min-height: 37px; font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 11px; padding: 7px 10px; }
+#region-panel select { appearance: none; padding-right: 28px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23728779' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; }
+.region-selection button { flex: none; min-height: 37px; }
+.region-state { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.region-header-check { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--accent-soft); }
+.region-header-check > .hint { margin: 8px 0 0; font-size: 11px; }
+.region-header-result { margin: 10px 0 0; white-space: pre-line; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; color: var(--muted); }
+.region-header-result.is-warning { color: #995028; }
+.region-scope { margin: 7px 0 0; font-size: 12px; line-height: 1.55; color: var(--muted); }
+.region-pending { color: #805922; background: #fff1d8; font-size: 12px; border-radius: 11px; padding: 10px 11px; margin: 11px 0 0; }
+.region-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.region-actions:empty { display: none; }
+.region-preview, .region-live { margin: 15px 0 0; white-space: pre-line; font: 12px/1.75 ui-monospace, SFMono-Regular, monospace; color: var(--muted); }
+.region-preview { padding: 13px; background: var(--accent-soft); border-radius: 14px; }
+.region-field { display: block; margin-top: 15px; font-size: 12px; }
+.region-field > span { display: block; margin-bottom: 6px; color: var(--muted); }
+.region-mode-group { min-width: 0; margin: 17px 0 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+.region-mode-group legend { padding: 0 5px; color: var(--text); font-size: 12px; font-weight: 600; }
+.region-native-option { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+.region-native-option input[type="checkbox"] { margin: 0; }
+.region-mode-group .region-field { margin-top: 12px; }
+.region-mode-group.is-native input[type="text"] { color: var(--muted); background: var(--surface-soft); }
+#region-panel .region-mode-group p { margin-bottom: 0; font-size: 12px; line-height: 1.55; }
+#region-panel details p { margin: 10px 0; font-size: 12px; }
+.region-error { white-space: pre-line; overflow-wrap: anywhere; background: #fff6ef; color: #995028; border-radius: 11px; padding: 10px 11px; margin: 11px 0 0; font-size: 12px; }
+.manage-view .region-state { font-size: 13px; }
+.manage-view .region-intro { margin-top: 8px; }
+.manage-view .region-selection { margin-top: 18px; }
+.manage-view #region-panel details { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.manage-view #region-panel select, .manage-view #region-panel input[type="text"] { min-height: 40px; font-size: 13px; }
+@media (prefers-color-scheme: dark) {
+  .region-pending { background: #48391e; color: #f3d49c; }
+  .region-error { color: #f4c3a5; background: #4a3025; }
+  .region-header-result.is-warning { color: #f4c3a5; }
+}

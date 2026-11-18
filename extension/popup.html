@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TraceLite</title>
+  <link rel="stylesheet" href="popup.css"><link rel="stylesheet" href="region.css"><link rel="stylesheet" href="protection.css"><link rel="stylesheet" href="popup-theme.css">
+</head>
+<body>
+  <svg class="icon-defs" aria-hidden="true"><defs>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM8.5 12l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="icon-link" viewBox="0 0 24 24"><path d="m9 15 6-6M7 14l-1 1a4 4 0 0 0 6 6l3-3a4 4 0 0 0 0-6M17 10l1-1a4 4 0 0 0-6-6L9 6a4 4 0 0 0 0 6"/></symbol>
+    <symbol id="icon-broom" viewBox="0 0 24 24"><path d="m15 3-5 9M7 11l8 4-3 6-9-5zM7 15l-1 3M10 17l-1 3M18 8v4m-2-2h4"/></symbol>
+    <symbol id="icon-box" viewBox="0 0 24 24"><path d="m4 7 8-4 8 4v11l-8 4-8-4zM4 7l8 4 8-4M12 11v11M8 5l8 4"/></symbol>
+    <symbol id="icon-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18"/></symbol>
+    <symbol id="icon-gear" viewBox="0 0 24 24"><path d="m9 3-1 3-3 1-2 5 2 5 3 1 1 3h6l1-3 3-1 2-5-2-5-3-1-1-3z"/><circle cx="12" cy="12" r="3"/></symbol>
+  </defs></svg>
+  <header class="app-header" id="app-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg><use href="#icon-shield"/></svg></span><div><h1>TraceLite</h1><p>浏览器隐私管理</p></div></div>
+    <label class="master"><input id="enabled" type="checkbox" disabled><span id="master-label">总开关</span></label>
+  </header>
+  <main id="popup-main">
+    <section class="overview" aria-label="保护状态"><p id="summary" role="status">正在检查保护状态…</p><p id="lifecycle-note" class="hint" role="status" hidden></p><p id="error" role="alert" hidden></p></section>
+    <section class="site-context site" aria-label="当前标签页">
+      <div class="site-line"><span class="site-dot" aria-hidden="true"></span><p id="origin">正在读取当前网页…</p><span id="site-js-badge" hidden>JS 已禁用</span><span id="site-exception-badge" hidden>本站例外</span></div>
+      <details id="site-options" class="site-options"><summary>站点选项 <span aria-hidden="true">···</span></summary><div class="site-options-content">
+        <div id="protection-site-exception" class="protection-site-exception" hidden><label><input id="protection-exclude" type="checkbox" disabled><span>对此域名及子域暂停两项追踪保护</span></label><p id="protection-exception-host" class="hint"></p></div>
+        <label><input id="block-js" type="checkbox" disabled><span>禁止本站 JavaScript</span></label><p id="site-state" class="hint" role="status"></p><div class="site-row"><p class="hint">影响登录与交互，刷新后生效。</p><button id="reload" type="button" disabled>刷新当前页</button></div>
+      </div></details>
+    </section>
+    <section id="protection-panel" aria-label="追踪保护"><div class="section-heading helper-heading"><h2>追踪保护</h2><span id="protection-status" class="status neutral">检查中</span></div>
+      <div class="protection-option feature-card mint"><label><span class="feature-icon" aria-hidden="true"><svg><use href="#icon-shield"/></svg></span><span class="feature-copy"><strong>追踪拦截</strong><span id="protection-trackers-detail" class="hint">拦截已知第三方追踪</span></span><input id="protect-trackers" type="checkbox" disabled></label></div>
+      <div class="protection-option feature-card peach"><label><span class="feature-icon" aria-hidden="true"><svg><use href="#icon-link"/></svg></span><span class="feature-copy"><strong>链接清理</strong><span class="hint">清理追踪参数，保留重要信息</span></span><input id="protect-links" type="checkbox" disabled></label></div>
+      <p id="protection-state" class="hint" role="status">正在读取实际状态…</p><button id="protection-retry" type="button" hidden>重新检查请求规则</button><p id="protection-error" class="protection-error" role="alert" hidden></p>
+    </section>
+    <section id="site-cleanup" class="site-cleanup" aria-label="手动清理本站记录"><div class="section-heading"><h3>站点清理</h3><span class="eyebrow">手动操作</span></div><p id="cleanup-scope" class="hint">正在读取清理范围…</p><div class="cleanup-actions"><button id="clear-site-cache" type="button" disabled><svg aria-hidden="true"><use href="#icon-broom"/></svg>清本站缓存</button><button id="clear-site-data" type="button" disabled><svg aria-hidden="true"><use href="#icon-box"/></svg>清本站数据</button></div><p class="cleanup-consequence">清站点数据可能退出登录，操作前会再次确认。</p><p id="cleanup-result" class="cleanup-result" role="status" hidden></p><button id="cleanup-recheck" type="button" hidden>重新读取清理结果</button></section>
+    <button id="region-shortcut" class="region-shortcut" type="button"><span><svg aria-hidden="true"><use href="#icon-globe"/></svg>地区与语言</span><span><span id="region-short-status">检查中</span><b aria-hidden="true">›</b></span></button><p id="region-quick-warning" class="quick-warning" role="status" hidden></p>
+  </main>
+  <footer id="app-footer"><span>本地运行<span id="extension-version" class="extension-version"></span></span><button id="manage" type="button"><svg aria-hidden="true"><use href="#icon-gear"/></svg>设置</button></footer>
+  <div id="settings-backdrop" class="settings-backdrop" hidden></div>
+  <section id="settings-drawer" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <header class="drawer-header"><div><p class="eyebrow">TRACELITE</p><h2 id="settings-title" tabindex="-1">偏好设置</h2></div><button id="settings-close" type="button" aria-label="关闭设置">×</button></header>
+    <nav class="drawer-tabs" aria-label="设置分类"><button type="button" data-settings-tab="basic" aria-selected="true">基础保护</button><button type="button" data-settings-tab="region" aria-selected="false">地区与语言</button><button type="button" data-settings-tab="about" aria-selected="false">权限说明</button></nav>
+    <div class="drawer-content">
+      <section data-settings-panel="basic">
+        <section class="native-card management-only"><div class="section-heading"><h2>浏览器原生保护</h2><span class="eyebrow" id="native-count">Chrome 原生设置</span></div><div id="settings"></div><div class="actions"><button id="retry" type="button">重试基础设置</button><button id="defaults" type="button">恢复基础推荐</button><button id="release" type="button">暂停全部功能</button></div><p class="hint">暂停释放本扩展的设置并保留选择；恢复后重新应用。</p></section>
+        <details class="management-only protection-details"><summary>追踪规则与域名例外</summary><p id="protection-coverage" class="hint"></p><p class="hint">域名例外覆盖该域名及子域。追踪请求按发起站匹配，链接清理按导航目标匹配。</p><ul id="protection-exceptions" aria-label="请求保护站点例外"></ul></details>
+      </section>
+      <section data-settings-panel="region" hidden><section id="region-panel" aria-label="网页语言与时区"></section></section>
+      <section class="management-only boundary" data-settings-panel="about" hidden><h2>权限与使用范围</h2><p>开启追踪保护或地区工具时按需申请网站访问。地区是可选本地化工具，默认关闭。</p><p>点击清理时才申请浏览数据权限，授权后仍需确认目标。清站点数据可能退出登录，删除离线数据，同主域及子域的 Cookie 可能受影响。</p><p>手动清理可在暂停时使用；暂停不会取消已经开始的删除。关闭弹窗后可重新查看任务，失败或未知不会自动重试。</p><p>这些设置不改变系统时区、代理出口、DNS、Canvas、WebGL 或字体，不保证匿名或完全阻止追踪。</p><div class="links"><button data-page="chrome://settings/security" type="button">安全 DNS</button><button data-page="chrome://settings/clearBrowserData" type="button">浏览数据</button><button data-page="chrome://settings/cookies" type="button">Cookie 设置</button></div></section>
+    </div>
+  </section>
+  <script type="module" src="popup.js"></script><script type="module" src="region-ui.js"></script><script type="module" src="protection-ui.js"></script><script type="module" src="popup-layout.js"></script>
+</body></html>

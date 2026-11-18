@@ -1,0 +1,13 @@
+# Local browser reports, user diagnostics and collaboration sessions.
+/verification/*
+!/verification/.gitkeep
+
+# Generated packages, dependencies and local configuration.
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.zip
+*.crx
+.env
+.env.*
