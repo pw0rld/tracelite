@@ -95,6 +95,17 @@ jobs:
         run: |
           google-chrome --version
           npm run test:chrome
+      - name: Surface browser failures in check annotations
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          report = pathlib.Path('verification/cute-popup-smoke.json')
+          message = (json.loads(report.read_text()).get('error') if report.exists() else None)
+          message = message or 'Chrome smoke test did not finish; inspect the failed setup step.'
+          message = message[:10000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::error title=Chrome popup regression::{message}')
+          PY
       - name: Upload browser report and screenshots
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -188,14 +188,25 @@ test("ambiguous directives, custom iterators, holes and object parts are passed 
   f.cleanup();
 });
 
-test("Blob options that can mutate parts after conversion are not reconstructed", async () => {
-  const f = fixture(), parts = ["globalThis.version = 'original';"];
-  let reads = 0;
-  const options = { get type() { reads++; parts[0] = "globalThis.version = 'mutated';"; return "text/javascript"; } };
-  const blob = new f.root.Blob(parts, options), url = f.root.URL.createObjectURL(blob);
+test("Blob options that mutate parts preserve native conversion semantics", async () => {
+  const f = fixture();
+  const input = () => {
+    const parts = ["globalThis.version = 'original';"];
+    let reads = 0;
+    return { parts, get reads() { return reads; },
+      options: { get type() { reads++; parts[0] = "globalThis.version = 'mutated';"; return "text/javascript"; } } };
+  };
+  // Blob's native options/sequence conversion order differs between runtimes.
+  // Compare fresh inputs against this runtime rather than choosing that order.
+  const native = input(), wrapped = input();
+  const baseline = new f.original.Blob(native.parts, native.options);
+  const blob = new f.root.Blob(wrapped.parts, wrapped.options), url = f.root.URL.createObjectURL(blob);
   assert.equal(new f.root.Worker(url).url, url);
-  assert.equal(reads, 1);
-  assert.match(await blob.text(), /original/);
+  assert.equal(wrapped.reads, 1);
+  assert.equal(wrapped.reads, native.reads, "the wrapper does not reread the type getter");
+  assert.equal(await blob.text(), await baseline.text(), "native Blob bytes are preserved");
+  assert.equal(blob.type, baseline.type);
+  assert.deepEqual(wrapped.parts, native.parts);
   class ChildBlob extends f.root.Blob {}
   const child = new ChildBlob(["globalThis.child = true;"], { type: "text/javascript" });
   assert.ok(child instanceof ChildBlob);
@@ -267,20 +278,37 @@ test("Proxy Blob parts with native-looking descriptors preserve their actual ite
 });
 
 test("Proxy Blob options and unrelated option accessors are passed through", async () => {
-  const f = fixture(), parts = ["globalThis.source = 'original';"];
-  const options = new Proxy({ type: "text/javascript" }, {
-    get(target, key, receiver) {
-      if (key === "type") parts[0] = "globalThis.source = 'changed';";
-      return Reflect.get(target, key, receiver);
-    }
-  });
-  const blob = new f.root.Blob(parts, options), url = f.root.URL.createObjectURL(blob);
-  assert.equal(await blob.text(), "globalThis.source = 'original';");
+  const f = fixture();
+  const input = () => {
+    const parts = ["globalThis.source = 'original';"], reads = [];
+    const options = new Proxy({ type: "text/javascript" }, {
+      get(target, key, receiver) {
+        reads.push(key);
+        if (key === "type") parts[0] = "globalThis.source = 'changed';";
+        return Reflect.get(target, key, receiver);
+      }
+    });
+    return { parts, options, reads };
+  };
+  const native = input(), wrapped = input();
+  const baseline = new f.original.Blob(native.parts, native.options);
+  const blob = new f.root.Blob(wrapped.parts, wrapped.options), url = f.root.URL.createObjectURL(blob);
   assert.equal(new f.root.Worker(url).url, url);
-  let unrelatedReads = 0;
-  const accessorOptions = { type: "text/javascript", get unrelated() { unrelatedReads++; return "unused"; } };
-  const accessorURL = f.root.URL.createObjectURL(new f.root.Blob(["globalThis.ready = true;"], accessorOptions));
+  assert.equal(await blob.text(), await baseline.text(), "Proxy options keep the native conversion bytes");
+  assert.deepEqual(wrapped.reads, native.reads, "the wrapper does not add Proxy property reads");
+  assert.equal(wrapped.reads.filter(key => key === "type").length, 1);
+  const accessorInput = () => {
+    let reads = 0;
+    return { parts: ["globalThis.ready = true;"], get reads() { return reads; },
+      options: { type: "text/javascript", get unrelated() { reads++; return "unused"; } } };
+  };
+  const nativeAccessor = accessorInput(), wrappedAccessor = accessorInput();
+  const accessorBaseline = new f.original.Blob(nativeAccessor.parts, nativeAccessor.options);
+  const accessorBlob = new f.root.Blob(wrappedAccessor.parts, wrappedAccessor.options);
+  const accessorURL = f.root.URL.createObjectURL(accessorBlob);
   assert.equal(new f.root.Worker(accessorURL).url, accessorURL);
-  assert.equal(unrelatedReads, 0);
+  assert.equal(wrappedAccessor.reads, 0);
+  assert.equal(wrappedAccessor.reads, nativeAccessor.reads);
+  assert.equal(await accessorBlob.text(), await accessorBaseline.text());
   f.cleanup();
 });
