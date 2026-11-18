@@ -3,9 +3,22 @@
 [![CI and release](https://github.com/pw0rld/tracelite/actions/workflows/ci.yml/badge.svg)](https://github.com/pw0rld/tracelite/actions/workflows/ci.yml)
 [下载最新版](https://github.com/pw0rld/tracelite/releases/latest)
 
-面向 **Mac + Chrome + Shadowrocket（小火箭）** 的本地 Manifest V3 扩展。安装后通过 Chrome 原生设置减少追踪和 WebRTC 绕过代理的风险；系统 DNS、VPN 路由和浏览器指纹仍需分别处理。
+面向 **Chrome / Brave** 的轻量 Manifest V3 隐私扩展，把浏览器原生保护、追踪规则与站点清理放进一个小弹窗。配置保存在本地，无遥测、无远程代码。
 
-**v0.9.2 提供自动 CI、经过检查的安装 ZIP 与源码 ZIP。** 界面采用暖白底、白色卡片与低饱和绿，只提供 400×600 小弹窗；基础设置、地区编辑和权限说明都收在弹窗内的小抽屉，不打开独立网站或大管理页。追踪拦截、链接清理、缓存／数据分离清理及暂停恢复继续保留。
+- **基础保护**：通过 Chrome 原生设置管理 WebRTC、网络预测、第三方 Cookie 与广告相关 API。
+- **按需启用**：第三方追踪拦截、谨慎清理链接参数，以及默认关闭的网页语言与时区工具。
+- **手动清理**：本站缓存和站点数据分开处理，删除前显示范围并再次确认。
+- **随时暂停**：保留已选配置，暂停时释放本扩展的覆盖，恢复后重新应用。
+
+支持浅色与深色模式，设置在弹窗内展开。系统 DNS、代理路由和浏览器指纹仍需分别处理。
+
+## 界面与使用示例
+
+[![TraceLite v0.9.2 深色弹窗与 who.1ms.dog 检测页面](docs/images/tracelite-v0.9.2-who.png)](docs/images/tracelite-v0.9.2-who.png)
+
+2026-11-18 的一次实际使用截图，展示深色弹窗、域名例外和地区待刷新提示。点击图片可查看原图。
+
+页面等级反映当时整套浏览器与网络环境，不是 TraceLite 单独效果的评分，也不代表匿名性保证。
 
 ## 安装与恢复
 
@@ -30,7 +43,7 @@ npm run package
 npm run verify:package
 ```
 
-产物位于 `dist/`：平铺的 `TraceLite-v版本号.zip`、只包含项目源码的 `TraceLite-v版本号-source.zip`，以及 `SHA256SUMS.txt`。源码包和安装包都不会包含本机检测报告、协作会话、浏览器资料或密钥。macOS 进入 ZIP 所在目录后，可用 `shasum -a 256 -c SHA256SUMS.txt` 核对下载。
+产物位于 `dist/`：平铺的 `TraceLite-v版本号.zip`、`TraceLite-v版本号-source.zip`，以及 `SHA256SUMS.txt`。安装包只包含扩展运行文件；源码包包含代码和明确选入 `docs/images/` 的公开文档图片。`verification/` 中的本地检测记录、协作会话、浏览器资料和密钥不随包发布。macOS 进入 ZIP 所在目录后，可用 `shasum -a 256 -c SHA256SUMS.txt` 核对下载。
 
 每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
 

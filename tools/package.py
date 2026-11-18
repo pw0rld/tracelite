@@ -44,6 +44,7 @@ def source_allowed(name):
     if path.suffix.lower() in {".pyc", ".pyo", ".zip", ".crx", ".pem", ".key", ".p12"}:
         return False
     return (name in SOURCE_ROOT_FILES or path.parts[0] in SOURCE_DIRS
+            or (path.parts[:2] == ("docs", "images") and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".webp"})
             or (path.parts[:2] == (".github", "workflows") and path.suffix in {".yml", ".yaml"}))
 
 
