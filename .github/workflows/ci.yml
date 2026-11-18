@@ -1,0 +1,151 @@
+name: CI and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Test and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Check release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          python3 - <<'PY'
+          import json, os
+          version = json.load(open('extension/manifest.json'))['version']
+          if os.environ['GITHUB_REF_NAME'] != f'v{version}':
+              raise SystemExit('Release tag must match extension/manifest.json')
+          PY
+      - name: Unit tests
+        run: npm test
+      - name: Generated scripts must be committed
+        run: git diff --exit-code -- extension/page-context.js extension/early/
+      - name: Build distributions
+        run: npm run package
+      - name: Verify distributions
+        run: npm run verify:package
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TraceLite-distribution-${{ github.sha }}
+          path: |
+            dist/TraceLite-*.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+
+  chrome:
+    name: Chrome popup regression
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: TraceLite-distribution-${{ github.sha }}
+          path: dist
+      - name: Verify and unpack the distribution to be tested
+        run: |
+          npm run verify:package
+          python3 - <<'PY'
+          import json, os, pathlib, zipfile
+          version = json.load(open('extension/manifest.json'))['version']
+          destination = pathlib.Path(os.environ['RUNNER_TEMP']) / 'tracelite-unpacked'
+          with zipfile.ZipFile(f'dist/TraceLite-v{version}.zip') as archive:
+              archive.extractall(destination)
+          PY
+      - name: Install Chinese fonts for screenshots
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Test the unpacked extension in a disposable Chrome profile
+        env:
+          CHROME_BIN: google-chrome
+          TRACELITE_EXTENSION_DIR: ${{ runner.temp }}/tracelite-unpacked
+        run: |
+          google-chrome --version
+          npm run test:chrome
+      - name: Upload browser report and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Chrome-smoke-${{ github.sha }}
+          path: |
+            verification/cute-popup-smoke.json
+            verification/cute-popup.png
+            verification/cute-popup-dark.png
+            verification/cute-settings.png
+          if-no-files-found: warn
+          retention-days: 14
+          overwrite: true
+
+  release:
+    name: Publish release ZIPs
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [build, chrome]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: TraceLite-distribution-${{ github.sha }}
+          path: dist
+      - name: Publish installable ZIP and clean source ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## 安装到 Chrome / Brave
+
+          1. 下载 `TraceLite-版本号.zip`（不要选 `-source.zip`）。
+          2. 将 ZIP 解压到一个固定文件夹，确认其中直接包含 `manifest.json`。
+          3. 打开 `chrome://extensions`，启用“开发者模式”。
+          4. 点击“加载已解压的扩展程序”，选择刚解压的文件夹。
+
+          Chrome 不能通过“加载已解压的扩展程序”直接导入 ZIP。更新时保留原文件夹，再重新加载扩展，以保留 ID 和设置。
+
+          `-source.zip` 是源码；`SHA256SUMS.txt` 提供下载校验值。构建与真实 Chrome 弹窗检查均已通过。本发布不会自动提交 Chrome 商店。
+          EOF
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/TraceLite-*.zip dist/SHA256SUMS.txt \
+              --repo "$GH_REPO" --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/TraceLite-*.zip dist/SHA256SUMS.txt \
+              --repo "$GH_REPO" --verify-tag --draft --title "TraceLite $RELEASE_TAG" \
+              --notes-file release-notes.md
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest

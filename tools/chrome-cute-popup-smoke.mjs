@@ -9,10 +9,16 @@ import { createServer } from "node:http";
 import assert from "node:assert/strict";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const extensionSource = path.resolve(process.env.TRACELITE_EXTENSION_DIR || path.join(root, "extension"));
 const browserName = process.argv.find(value => value.startsWith("--browser="))?.split("=")[1] || "chrome";
 assert.ok(["chrome", "brave"].includes(browserName));
-const binary = browserName === "brave" ? "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
-  : "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const binaryVariable = browserName === "brave" ? "BRAVE_BIN" : "CHROME_BIN";
+const platformBinaries = {
+  darwin: { chrome: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", brave: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser" },
+  linux: { chrome: "google-chrome", brave: "brave-browser" },
+};
+const binary = process.env[binaryVariable] || platformBinaries[process.platform]?.[browserName];
+assert.ok(binary, `Set ${binaryVariable} to a Chrome/Brave executable on ${process.platform}`);
 const outputPrefix = browserName === "brave" ? "brave-cute" : "cute";
 const scratch = await mkdtemp(path.join(tmpdir(), "tracelite-cute-popup-"));
 const profile = path.join(scratch, "profile"), extension = path.join(scratch, "extension");
@@ -26,7 +32,8 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const stage = (name, details = {}) => { report.stages.push({ name, ...details }); console.log("PASS " + name); };
 
 try {
-  await mkdir(profile); await cp(path.join(root, "extension"), extension, { recursive: true });
+  await mkdir(path.join(root, "verification"), { recursive: true });
+  await mkdir(profile); await cp(extensionSource, extension, { recursive: true });
   const manifestPath = path.join(extension, "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   manifest.permissions = [...new Set([...manifest.permissions, ...(manifest.optional_permissions || [])])];

@@ -4,6 +4,7 @@
 
 # Generated packages, dependencies and local configuration.
 node_modules/
+/dist/
 __pycache__/
 *.py[cod]
 .DS_Store
