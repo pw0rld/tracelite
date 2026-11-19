@@ -689,7 +689,7 @@
 
   function earlyControlEvent(key, timeOrigin) {
   "use strict";
-  if (typeof key !== "string" || !/^(jp|sg-en|us-en|us-ny)$/.test(key)
+  if (typeof key !== "string" || !/^(jp|sg-en|us-(en|ny|chicago|denver|phoenix|anchorage|honolulu|adak|puerto-rico|samoa|guam))$/.test(key)
     || typeof timeOrigin !== "number" || !Number.isFinite(timeOrigin) || timeOrigin < 0) throw new TypeError("Invalid early document identity");
   const value = `${key}\n${timeOrigin}`;
   let a = 0x811c9dc5, b = 0x9e3779b9, c = 0x85ebca6b, d = 0xc2b2ae35;
@@ -704,6 +704,6 @@
   return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20)}`;
 }
   try {
-    applyPageContext({"id":"us-ny","name":"美国纽约 · 英语","timezone":"America/New_York","locale":"en-US","languages":["en-US","en"],"timezoneMode":"override","languageMode":"override"}, earlyControlEvent("us-ny", performance.timeOrigin));
+    applyPageContext({"id":"us-ny","name":"美国 · 纽约（东部）· 英语","timezone":"America/New_York","locale":"en-US","languages":["en-US","en"],"timezoneMode":"override","languageMode":"override"}, earlyControlEvent("us-ny", performance.timeOrigin));
   } catch { /* The extension verifies actual page readings separately. */ }
 })();

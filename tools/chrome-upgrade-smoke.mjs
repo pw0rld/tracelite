@@ -1,7 +1,7 @@
 // Real older -> current version reloads in disposable Chrome profiles, using only localhost.
 // Usage: node tools/chrome-upgrade-smoke.mjs [path/to/older-source.zip]
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, writeFile, rm, mkdir, cp } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile, rm, mkdir, cp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -60,7 +60,7 @@ async function runScenario(mode, oldExtension, localUrl) {
   const extension = path.join(directory, "extension");
   await mkdir(profile, { recursive: true });
   const oldManifest = await copyPregranted(oldExtension, extension);
-  assert.ok(["0.3.1", "0.5.1", "0.6.0", "0.7.1", "0.8.0"].includes(oldManifest.version), "archive must contain a supported prior version");
+  assert.ok(["0.3.1", "0.5.1", "0.6.0", "0.7.1", "0.8.0", "0.9.2"].includes(oldManifest.version), "archive must contain a supported prior version");
   const oldUserScripts = oldManifest.permissions.includes("userScripts");
   const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
     "--headless=new", `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--enable-unsafe-extension-debugging",
@@ -258,7 +258,10 @@ let failure;
 try {
   const unpacked = path.join(workspace, "old-source");
   await unzip(oldZip, unpacked);
-  const oldExtension = path.join(unpacked, "chrome-privacy-guard", "extension");
+  const archiveRoots = (await readdir(unpacked, { withFileTypes: true })).filter(entry => entry.isDirectory()
+    && (entry.name === "chrome-privacy-guard" || /^tracelite-v\d+(?:\.\d+){0,3}$/.test(entry.name)));
+  assert.equal(archiveRoots.length, 1, "source archive must contain exactly one recognized project folder");
+  const oldExtension = path.join(unpacked, archiveRoots[0].name, "extension");
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const localUrl = `http://127.0.0.1:${server.address().port}/`;
   for (const mode of ["active", "paused", "stopped"]) await runScenario(mode, oldExtension, localUrl);

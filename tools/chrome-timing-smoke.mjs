@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { EARLY_PROFILES } from "../extension/region-early.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const archive = process.argv[2] ? path.resolve(process.argv[2]) : null;
@@ -20,7 +21,7 @@ if (archive) await new Promise((resolve, reject) => {
   let error = ""; child.stderr.on("data", data => { error += data; });
   child.once("error", reject); child.once("exit", code => code === 0 ? resolve() : reject(new Error(error)));
 });
-else await cp(path.join(root, "extension"), extension, { recursive: true });
+else await cp(path.resolve(process.env.TRACELITE_EXTENSION_DIR || path.join(root, "extension")), extension, { recursive: true });
 const manifest = JSON.parse(await readFile(path.join(extension, "manifest.json"), "utf8"));
 manifest.permissions = [...new Set([...manifest.permissions, ...manifest.optional_permissions])];
 manifest.host_permissions = manifest.optional_host_permissions;
@@ -84,7 +85,8 @@ const server = createServer((request, response) => {
 });
 await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
 const base = `http://127.0.0.1:${server.address().port}`;
-const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+const chromeBinary = process.env.CHROME_BIN || (process.platform === "darwin" ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" : "google-chrome");
+const chrome = spawn(chromeBinary, [
   "--headless=new", `--user-data-dir=${profile}`, "--remote-debugging-pipe", "--enable-unsafe-extension-debugging",
   "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps",
   "--disable-features=MediaRouter,OptimizationHints,AutofillServerCommunication", "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=127.0.0.1", "about:blank"
@@ -137,11 +139,11 @@ try {
   await waitFor(() => evaluate(`chrome.scripting.executeScript({target:{tabId:${tab.id}},world:'MAIN',func:()=>!!window.timingProbe?.worker}).then(result=>result[0]?.result)`, popup.sessionId), "native first probe");
   const readProbe = () => evaluate(`chrome.scripting.executeScript({target:{tabId:${tab.id}},world:'MAIN',func:()=>window.timingProbe?.finish()}).then(result=>result[0]?.result)`, popup.sessionId);
   report.native = (await readProbe()).initial;
+  const availableIds = new Set((await send({type:"regionStatus",tabId:tab.id})).profiles.map(profile=>profile.id));
+  const bundledProfiles = EARLY_PROFILES.filter(({key})=>availableIds.has(key));
+  if (!archive) assert.equal(bundledProfiles.length,EARLY_PROFILES.length,'current build exposes every bundled preset');
   const scenarios = expectConsistent ? [
-    {name:'us-first-load',delay:0,profileId:'us-en',timezone:'America/Los_Angeles',language:'en-US'},
-    {name:'jp-first-load',delay:0,profileId:'jp',timezone:'Asia/Tokyo',language:'ja-JP'},
-    {name:'sg-first-load',delay:0,profileId:'sg-en',timezone:'Asia/Singapore',language:'en-SG'},
-    {name:'us-ny-first-load',delay:0,profileId:'us-ny',timezone:'America/New_York',language:'en-US'},
+    ...bundledProfiles.map(({key,profile})=>({name:key+'-first-load',delay:0,profileId:key,timezone:profile.timezone,language:profile.languages[0]})),
     {name:'background-bootstrap-delayed',delay:200,profileId:'us-en',timezone:'America/Los_Angeles',language:'en-US'}
   ] : [{ name: "natural", delay: 0, profileId:'us-en',timezone:'America/Los_Angeles',language:'en-US' }, { name: "controlled-bootstrap-delay", delay: 200,profileId:'us-en',timezone:'America/Los_Angeles',language:'en-US' }];
   for (const scenario of scenarios) {
@@ -184,12 +186,20 @@ try {
   report.reproduced = report.scenarios.some(item => item.cachedIntlVsCurrentDateMismatch && item.workerDifferences?.length);
   assert.equal(report.reproduced, !expectConsistent);
   if (expectConsistent) {
+    // Use the last bundled preset: stopping a recently added entry catches
+    // bootstrap implementations that accidentally dispatch only the old four.
+    const lastPreset=bundledProfiles.at(-1);
+    await send({type:'regionApply',tabId:tab.id,profileId:lastPreset.key});
+    await waitFor(async()=>{
+      const value=await readProbe();
+      return value?.worker&&value.initial.timezone===lastPreset.profile.timezone;
+    },'last bundled preset is active before pause');
     // The MAIN entry runs first even when the isolated handshake is delayed.
     // Pause before this new document has been recorded by the background.
     await evaluate(`chrome.tabs.update(${tab.id},{url:${JSON.stringify(base+'/pause-before-bootstrap?test-bootstrap-delay=2000')}})`,popup.sessionId);
     await waitFor(async()=>{const value=await readProbe();return value?.url.includes('/pause-before-bootstrap')&&value.worker},'unrecorded early document');
     const unrecorded=await readProbe();
-    assert.equal(unrecorded.initial.timezone,'America/Los_Angeles');
+    assert.equal(unrecorded.initial.timezone,lastPreset.profile.timezone);
     const newDocumentId=await evaluate(`chrome.scripting.executeScript({target:{tabId:${tab.id}},world:'MAIN',func:()=>null}).then(result=>result[0].documentId)`,popup.sessionId);
     const saved=await evaluate(`chrome.storage.session.get('regionDocuments').then(value=>value.regionDocuments?.applied?.[${JSON.stringify(newDocumentId)}])`,popup.sessionId);
     assert.equal(saved,undefined,'pause precedes recording of the new document');
@@ -198,6 +208,9 @@ try {
       const value=await readProbe();
       return value?.replies.some(item=>item.reply?.stopEarlyTokens?.length);
     },'delayed handshake receives refusal stop tokens');
+    const refused=await readProbe();
+    const stopTokens=refused.replies.find(item=>item.reply?.stopEarlyTokens?.length)?.reply.stopEarlyTokens;
+    assert.equal(new Set(stopTokens).size,bundledProfiles.length,'refusal covers every bundled preset');
     const future=await evaluate(`chrome.scripting.executeScript({target:{tabId:${tab.id}},world:'MAIN',func:async()=>{
       const frame=document.createElement('iframe');document.body.appendChild(frame);
       const iframe={timezone:frame.contentWindow.Intl.DateTimeFormat().resolvedOptions().timeZone,language:frame.contentWindow.navigator.language};frame.remove();
@@ -206,7 +219,7 @@ try {
       const result=await new Promise((resolve,reject)=>{worker.onmessage=e=>resolve(e.data);worker.onerror=()=>reject(new Error('future Worker failed'));setTimeout(()=>reject(new Error('future Worker timed out')),2500)});
       worker.terminate();return {iframe,worker:result};
     }}).then(result=>result[0].result)`,popup.sessionId);
-    report.pausedBeforeBootstrap={...future,probe:await readProbe()};
+    report.pausedBeforeBootstrap={profileId:lastPreset.key,...future,probe:await readProbe()};
     assert.equal(future.iframe.timezone,report.native.timezone);
     assert.equal(future.iframe.language,report.native.language);
     assert.equal(future.worker.timezone,report.native.timezone);

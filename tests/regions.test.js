@@ -5,11 +5,48 @@ import { BUILTIN_PROFILES, validateProfile, normalizeRegions, profilesFor } from
 import { languageRule, readEarlyDocument } from "../extension/regions.js";
 import { applyPageLocale } from "../extension/page-locale.js";
 
-test("three requested regions and US timezones have consistent language presets", () => {
+test("Japanese, Singapore and US presets have consistent language settings", () => {
   assert.equal(BUILTIN_PROFILES.find(p => p.id === "jp").timezone, "Asia/Tokyo");
   assert.equal(BUILTIN_PROFILES.find(p => p.id === "sg-en").locale, "en-SG");
   assert.equal(BUILTIN_PROFILES.find(p => p.id === "us-en").timezone, "America/Los_Angeles");
   for (const profile of BUILTIN_PROFILES.filter(profile => profile.languageMode !== "native")) assert.equal(validateProfile(profile, profile.id).languages[0], profile.locale);
+  for (const profile of BUILTIN_PROFILES.filter(profile => profile.id.startsWith("us-"))) {
+    assert.equal(profile.locale, "en-US");
+    assert.deepEqual(profile.languages, ["en-US", "en"]);
+  }
+});
+
+test("US presets cover standard zones and preserve winter/summer exceptions", async t => {
+  // Minutes west of UTC, as Date.getTimezoneOffset reports. Phoenix and
+  // Honolulu stay fixed, while Denver and Adak observe daylight saving time.
+  const expected = [
+    ["us-en", "America/Los_Angeles", 480, 420],
+    ["us-ny", "America/New_York", 300, 240],
+    ["us-chicago", "America/Chicago", 360, 300],
+    ["us-denver", "America/Denver", 420, 360],
+    ["us-phoenix", "America/Phoenix", 420, 420],
+    ["us-anchorage", "America/Anchorage", 540, 480],
+    ["us-honolulu", "Pacific/Honolulu", 600, 600],
+    ["us-adak", "America/Adak", 600, 540],
+    ["us-puerto-rico", "America/Puerto_Rico", 240, 240],
+    ["us-samoa", "Pacific/Pago_Pago", 660, 660],
+    ["us-guam", "Pacific/Guam", -600, -600]
+  ];
+  assert.deepEqual(new Set(BUILTIN_PROFILES.filter(profile => profile.id.startsWith("us-")).map(profile => profile.id)),
+    new Set(expected.map(([id]) => id)));
+  for (const [id, timezone, winterOffset, summerOffset] of expected) await t.test(id, () => {
+    const profile = BUILTIN_PROFILES.find(profile => profile.id === id);
+    assert.equal(profile.timezone, timezone);
+    const context = vm.createContext({});
+    const run = expression => vm.runInContext(expression, context);
+    run("globalThis.navigator=Object.create({get language(){return 'zh-CN'},get languages(){return ['zh-CN','zh']}})");
+    run(`(${applyPageLocale.toString()})(${JSON.stringify(profile)})`);
+    assert.equal(run("Intl.DateTimeFormat().resolvedOptions().timeZone"), timezone);
+    assert.equal(run("new Date('2026-01-15T12:00:00Z').getTimezoneOffset()"), winterOffset);
+    assert.equal(run("new Date('2026-07-15T12:00:00Z').getTimezoneOffset()"), summerOffset);
+    assert.equal(run("navigator.languages.join()"), "en-US,en");
+    assert.equal(languageRule(profile).action.requestHeaders[0].value, "en-US,en;q=0.9");
+  });
 });
 
 test("first built-in native preset does not require or retain override fields", () => {

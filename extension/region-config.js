@@ -2,8 +2,17 @@ export const BUILTIN_PROFILES = [
   { id: "native", name: "浏览器原生（不改写）", timezoneMode: "native", languageMode: "native", timezone: "", locale: "", languages: [] },
   { id: "jp", name: "日本 · 日语", timezone: "Asia/Tokyo", locale: "ja-JP", languages: ["ja-JP", "ja"] },
   { id: "sg-en", name: "新加坡 · 英语", timezone: "Asia/Singapore", locale: "en-SG", languages: ["en-SG", "en"] },
-  { id: "us-en", name: "美国洛杉矶 · 英语", timezone: "America/Los_Angeles", locale: "en-US", languages: ["en-US", "en"] },
-  { id: "us-ny", name: "美国纽约 · 英语", timezone: "America/New_York", locale: "en-US", languages: ["en-US", "en"] }
+  { id: "us-en", name: "美国 · 洛杉矶（太平洋）· 英语", timezone: "America/Los_Angeles", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-ny", name: "美国 · 纽约（东部）· 英语", timezone: "America/New_York", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-chicago", name: "美国 · 芝加哥（中部）· 英语", timezone: "America/Chicago", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-denver", name: "美国 · 丹佛（山地）· 英语", timezone: "America/Denver", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-phoenix", name: "美国 · 凤凰城（亚利桑那，无夏令时）· 英语", timezone: "America/Phoenix", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-anchorage", name: "美国 · 安克雷奇（阿拉斯加）· 英语", timezone: "America/Anchorage", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-honolulu", name: "美国 · 檀香山（夏威夷，无夏令时）· 英语", timezone: "Pacific/Honolulu", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-adak", name: "美国 · 阿达克（阿留申群岛）· 英语", timezone: "America/Adak", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-puerto-rico", name: "美国属地 · 波多黎各／美属维京（大西洋）· 英语", timezone: "America/Puerto_Rico", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-samoa", name: "美国属地 · 美属萨摩亚 · 英语", timezone: "Pacific/Pago_Pago", locale: "en-US", languages: ["en-US", "en"] },
+  { id: "us-guam", name: "美国属地 · 关岛／北马里亚纳 · 英语", timezone: "Pacific/Guam", locale: "en-US", languages: ["en-US", "en"] }
 ];
 
 export function validateProfile(input, id) {

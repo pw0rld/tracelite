@@ -79,5 +79,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await writeFile(new URL("../extension/page-context.js", import.meta.url), renderPageContext());
   await mkdir(new URL("../extension/early/", import.meta.url), { recursive: true });
   for (const entry of EARLY_PROFILES) await writeFile(new URL(`../extension/${entry.file}`, import.meta.url), renderEarlyEntry(entry.key));
-  console.log("Updated extension/page-context.js and four early MAIN entries");
+  console.log(`Updated extension/page-context.js and ${EARLY_PROFILES.length} early MAIN entries`);
 }

@@ -22,7 +22,7 @@ export function earlyProfileFor(profile) {
 // There is no secret in this deterministic token and it is not authentication.
 export function earlyControlEvent(key, timeOrigin) {
   "use strict";
-  if (typeof key !== "string" || !/^(jp|sg-en|us-en|us-ny)$/.test(key)
+  if (typeof key !== "string" || !/^(jp|sg-en|us-(en|ny|chicago|denver|phoenix|anchorage|honolulu|adak|puerto-rico|samoa|guam))$/.test(key)
     || typeof timeOrigin !== "number" || !Number.isFinite(timeOrigin) || timeOrigin < 0) throw new TypeError("Invalid early document identity");
   const value = `${key}\n${timeOrigin}`;
   let a = 0x811c9dc5, b = 0x9e3779b9, c = 0x85ebca6b, d = 0xc2b2ae35;

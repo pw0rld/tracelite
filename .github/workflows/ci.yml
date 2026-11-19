@@ -101,13 +101,24 @@ jobs:
         run: |
           google-chrome --version
           npm run test:chrome
+      - name: Verify every bundled region from its first page script
+        env:
+          CHROME_BIN: google-chrome
+          TRACELITE_EXTENSION_DIR: ${{ runner.temp }}/tracelite-unpacked
+        run: node tools/chrome-timing-smoke.mjs
       - name: Surface browser failures in check annotations
         if: failure()
         run: |
           python3 - <<'PY'
           import json, pathlib
-          report = pathlib.Path('verification/cute-popup-smoke.json')
-          message = (json.loads(report.read_text()).get('error') if report.exists() else None)
+          errors = []
+          for name in ('cute-popup-smoke.json', 'chrome-timing-smoke.json'):
+              report = pathlib.Path('verification') / name
+              if report.exists():
+                  error = json.loads(report.read_text()).get('error')
+                  if error:
+                      errors.append(f'{name}: {error}')
+          message = '\n\n'.join(errors)
           message = message or 'Chrome smoke test did not finish; inspect the failed setup step.'
           message = message[:10000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
           print(f'::error title=Chrome popup regression::{message}')
@@ -119,6 +130,7 @@ jobs:
           name: Chrome-smoke-${{ github.sha }}
           path: |
             verification/cute-popup-smoke.json
+            verification/chrome-timing-smoke.json
             verification/cute-popup.png
             verification/cute-popup-dark.png
             verification/cute-settings.png

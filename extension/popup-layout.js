@@ -59,6 +59,7 @@ window.addEventListener("region-rendered", event => {
   $("#region-shortcut").classList.toggle("is-warning", Boolean(warning || refresh));
   $("#region-short-status").textContent = cleanup ? "待清理" : state.pageMismatch ? "当前页未一致" : life.errors?.length ? "需处理"
     : life.status === "unknown" ? "状态未知" : life.status === "paused" ? "已暂停" : refresh ? "有页面待刷新" : life.active ? state.name || "已启用" : "已关闭";
+  $("#region-short-status").title = $("#region-short-status").textContent;
   const readbackWarning = $("#region-quick-warning");
   readbackWarning.hidden = !state.pageMismatch && !state.readError;
   readbackWarning.textContent = state.pageMismatch ? "当前页地区读数尚未对齐，请打开地区与语言查看并刷新。"

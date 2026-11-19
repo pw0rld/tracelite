@@ -13,7 +13,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 });
 function stopRefusedEarlyEntries(reply) {
   if (!Array.isArray(reply?.stopEarlyTokens)) return;
-  for (const token of reply.stopEarlyTokens.slice(0, 4)) if (typeof token === "string"
+  // Allow the full bundled preset list while bounding malformed replies.
+  for (const token of reply.stopEarlyTokens.slice(0, 64)) if (typeof token === "string"
     && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(token)) {
     window.dispatchEvent(new Event(token));
   }

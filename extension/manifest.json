@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TraceLite",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "description": "原生隐私保护、可选追踪拦截与链接清理；手动分开清本站缓存和数据，支持暂停恢复。",
   "minimum_chrome_version": "138",
   "permissions": ["privacy", "storage", "contentSettings", "activeTab", "scripting", "declarativeNetRequestWithHostAccess"],

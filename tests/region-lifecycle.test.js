@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { createRegions, readEarlyDocument } from "../extension/regions.js";
-import { earlyControlEvent } from "../extension/region-early.js";
+import { EARLY_PROFILES, earlyControlEvent } from "../extension/region-early.js";
 
 function fixture(options = {}) {
   const data = { config: { enabled: options.enabled !== false }, regions: { custom: [], defaultProfileId: null } };
@@ -103,25 +103,25 @@ test("a document not yet recorded receives every early stop token when pause win
   for (const message of [{type:'regionBootstrap'},{type:'regionDocument',generation}]) {
     const response = await region.documentRequest({...message,protocol:2,timeOrigin:12345},sender('unrecorded'));
     assert.equal(response.applied,false);
-    assert.deepEqual(response.stopEarlyTokens,['jp','sg-en','us-en','us-ny'].map(key=>earlyControlEvent(key,12345)));
+    assert.deepEqual(response.stopEarlyTokens,EARLY_PROFILES.map(({key})=>earlyControlEvent(key,12345)));
   }
   assert.equal(f.inspect().executions.length,0);
 });
 
 test("the isolated handshake dispatches bounded stop tokens on either refused stage", async () => {
   const source = await readFile(new URL('../extension/region-bootstrap.js',import.meta.url),'utf8');
-  const token=earlyControlEvent('us-en',12345);
+  const tokens=EARLY_PROFILES.map(({key})=>earlyControlEvent(key,12345));
   for (const refuseFirst of [true,false]) {
     const events=[],requests=[];
     vm.runInNewContext(source,{
       chrome:{runtime:{id:'own-extension',onMessage:{addListener(){}},sendMessage:async message=>{
         requests.push(message);
-        return !refuseFirst&&requests.length===1 ? {generation:3} : {applied:false,stopEarlyTokens:[token,'click',null]};
+        return !refuseFirst&&requests.length===1 ? {generation:3} : {applied:false,stopEarlyTokens:[...tokens,'click',null]};
       }}},
       window:{addEventListener(){},dispatchEvent:event=>events.push(event.type)},Event,performance:{timeOrigin:12345}
     });
     await new Promise(resolve=>setImmediate(resolve));
-    assert.deepEqual(events,[token]);
+    assert.deepEqual(events,tokens);
     assert.equal(requests.length,refuseFirst?1:2);
     assert.ok(requests.every(request=>request.timeOrigin===12345));
   }

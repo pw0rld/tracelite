@@ -22,7 +22,7 @@
 
 ## 安装与恢复
 
-从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.2.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
+从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.3.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
 
 1. 在 Chrome 地址栏打开 `chrome://extensions`，开启右上角“开发者模式”。
 2. 点击“加载已解压的扩展程序”：安装包选择解压后直接包含 `manifest.json` 的文件夹；克隆源码则选择项目内的 `extension/`。
@@ -47,7 +47,7 @@ npm run verify:package
 
 每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
 
-创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.2`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
+创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.3`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
 
 暂停保护会清除**本扩展自己的设置覆盖**，恢复由 Chrome、用户、策略和其他扩展决定的值，而非强制把项目改为开启。恢复保护会重新应用所选设置。禁用或卸载扩展也会撤销其 ChromeSetting 覆盖。[设置生命周期](https://developer.chrome.com/docs/extensions/reference/api/types)
 
@@ -104,8 +104,21 @@ v0.8.0 验证：197 项单测通过；Chrome 157 与 Brave（Chromium 157）临�
 | 保留浏览器原生 | 不覆盖 | 不覆盖 API 或 `Accept-Language` |
 | 日本 · 日语 | `Asia/Tokyo` | `ja-JP, ja` |
 | 新加坡 · 英语 | `Asia/Singapore` | `en-SG, en` |
-| 美国洛杉矶 · 英语 | `America/Los_Angeles` | `en-US, en` |
-| 美国纽约 · 英语 | `America/New_York` | `en-US, en` |
+| 美国 · 洛杉矶（太平洋）· 英语 | `America/Los_Angeles` | `en-US, en` |
+| 美国 · 纽约（东部）· 英语 | `America/New_York` | `en-US, en` |
+| 美国 · 芝加哥（中部）· 英语 | `America/Chicago` | `en-US, en` |
+| 美国 · 丹佛（山地）· 英语 | `America/Denver` | `en-US, en` |
+| 美国 · 凤凰城（亚利桑那，无夏令时）· 英语 | `America/Phoenix` | `en-US, en` |
+| 美国 · 安克雷奇（阿拉斯加）· 英语 | `America/Anchorage` | `en-US, en` |
+| 美国 · 檀香山（夏威夷，无夏令时）· 英语 | `Pacific/Honolulu` | `en-US, en` |
+| 美国 · 阿达克（阿留申群岛）· 英语 | `America/Adak` | `en-US, en` |
+| 美国属地 · 波多黎各／美属维京（大西洋）· 英语 | `America/Puerto_Rico` | `en-US, en` |
+| 美国属地 · 美属萨摩亚 · 英语 | `Pacific/Pago_Pago` | `en-US, en` |
+| 美国属地 · 关岛／北马里亚纳 · 英语 | `Pacific/Guam` | `en-US, en` |
+
+美国共提供 11 个预设，覆盖本土、阿拉斯加、夏威夷及有人居住属地的九个标准时区，并单列凤凰城和阿留申群岛的夏令时差异。名称使用代表城市，偏移由浏览器的 IANA 时区数据库按日期计算；不是固定写死的 UTC 数值。[美国官方时区图](https://www.time.gov/)、[夏令时说明](https://www.transportation.gov/regulations/daylight-saving-time)
+
+v0.9.3 新增项均提供随包的前置脚本。原洛杉矶、纽约配置 ID 保留；升级保留已保存选择，地区功能仍默认关闭。
 
 也可展开“自定义／另存组合”，保存最多 20 组。时区与语言分别提供“保留浏览器原生”选项：
 
@@ -126,7 +139,7 @@ v0.8.0 验证：197 项单测通过；Chrome 157 与 Brave（Chromium 157）临�
 4. “停止地区模式”取消启用意图并清理未来注入与语言请求头规则，但不会替你刷新已有页面，以免丢失表单。可点击“刷新当前页”或确认后“刷新受影响页面”；需要刷新的数量会持续显示。
 5. 总开关暂停会保存你此前主动启用的组合；恢复总开关时重新应用该组合。**检测到地区权限撤销时则取消启用意图**，权限恢复后只重试清理，不会自动开启地区模式，必须再次点击“启用并刷新”。
 
-实现：先安装 `Accept-Language` 规则，再注册普通内容脚本。四组内置配置使用随包的固定 `MAIN document_start` 文件；后台随后只核对读数，不再半途修改同一文档。不匹配内置参数的自定义组合保留逐文档后台授权后覆盖，因此可能晚于网页首次读取。两项原生不安装覆盖脚本或语言规则。所有动态注册均不跨浏览器会话持久化；浏览器重启、升级或已有页面未获得前置入口时，应检查实际读数并手动刷新。注册与 Chrome 网站权限承载内置模式的授权，后台不再能在每次执行前同步确认内置预设。[内容脚本官方文档](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)、[脚本执行接口](https://developer.chrome.com/docs/extensions/reference/api/scripting)、[请求规则官方文档](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest)
+实现：先安装 `Accept-Language` 规则，再注册普通内容脚本。所有内置覆盖配置使用随包的固定 `MAIN document_start` 文件；后台随后只核对读数，不再半途修改同一文档。不匹配内置参数的自定义组合保留逐文档后台授权后覆盖，因此可能晚于网页首次读取。两项原生不安装覆盖脚本或语言规则。所有动态注册均不跨浏览器会话持久化；浏览器重启、升级或已有页面未获得前置入口时，应检查实际读数并手动刷新。注册与 Chrome 网站权限承载内置模式的授权，后台不再能在每次执行前同步确认内置预设。[内容脚本官方文档](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts)、[脚本执行接口](https://developer.chrome.com/docs/extensions/reference/api/scripting)、[请求规则官方文档](https://developer.chrome.com/docs/extensions/reference/api/declarativeNetRequest)
 
 暂停/撤销失败会分别保留“脚本待清理”“请求头待清理”，不显示成已完全关闭。恢复所需权限后可点“恢复权限并清理”，只清理旧规则，不会重新开启地区模式。要明确停止，使用扩展内“停止地区模式”；恢复网站访问权限不等于重新启用地区模式。
 
