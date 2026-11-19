@@ -134,6 +134,7 @@ jobs:
             verification/cute-popup.png
             verification/cute-popup-dark.png
             verification/cute-settings.png
+            verification/cute-ip-region.png
           if-no-files-found: warn
           retention-days: 14
           overwrite: true

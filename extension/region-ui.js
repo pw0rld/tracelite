@@ -1,6 +1,7 @@
 // Optional localization controls. Network header checks require an explicit click.
 import { sendRequest, withTimeout } from "./rpc.js";
 import { earlyProfileFor } from "./region-early.js";
+import { IP_LOOKUP_ORIGIN } from "./region-ip.js";
 
 const panel = document.querySelector("#region-panel");
 const params = new URLSearchParams(location.search);
@@ -16,11 +17,17 @@ const button = (text, handler, className) => {
   const el = node("button", text, className); el.type = "button"; el.addEventListener("click", handler); return el;
 };
 let tabId = null, supportedTab = false, headerCheckSupported = false, data = null, selectedId = null, working = false, editorDirty = false, dataKnown = false, refreshId = 0;
+let ipWorking = false, selectionRevision = 0;
 
 const heading = node("div", undefined, "section-heading");
 const statusChip = node("span", "检查中", "status neutral");
 heading.append(node("h2", "网页语言与时区"), statusChip);
 const intro = node("p", "默认不覆盖。可保留原生值，或分别设置语言与时区；覆盖仍可被检测。", "hint region-intro");
+const ipPicker = node("div", undefined, "region-ip-picker");
+const ipDetect = button("按出口 IP 自动选择", detectIpRegion); ipDetect.id = "region-ip-detect";
+const ipNotice = node("p", "点击向 ipwho.is 查询，该服务会看到本次出口 IP；结果仅在当前弹窗显示。分流时可能与目标网站出口不同。", "hint"); ipNotice.id = "region-ip-notice";
+const ipResult = node("p", "", "region-ip-result"); ipResult.id = "region-ip-result"; ipResult.hidden = true; ipResult.setAttribute("role", "status");
+ipPicker.append(ipDetect, ipNotice, ipResult);
 const selector = node("select"); selector.id = "region-profile"; selector.setAttribute("aria-label", "选择语言与时区组合");
 const selectionRow = node("div", undefined, "region-selection");
 const applyButton = button("启用并刷新", enableSelected, "primary-button");
@@ -96,13 +103,53 @@ help.append(node("p", "时区与语言可独立保留原生或覆盖。全原生
 help.append(node("p", "可访问的同源 iframe、部分经典 Blob Worker 会同步设置。HTTP、模块、共享及 Service Worker 等仍可能返回原始值，网站也可能发现改写。账号、Cookie 或网址中的语言偏好可能优先。"));
 
 selectionRow.hidden = true;
-panel.append(heading, intro, selectionRow, scopeText, stateText, headerPanel, checkButton, pendingText, actions, readings, editor, help, error);
-for (const input of [nameInput, timezoneInput, localeInput, languagesInput]) input.addEventListener("input", () => { editorDirty = true; });
-for (const input of [timezoneMode.input, languageMode.input]) input.addEventListener("change", () => { editorDirty = true; syncModeInputs(); });
+panel.append(heading, intro, ipPicker, selectionRow, scopeText, stateText, headerPanel, checkButton, pendingText, actions, readings, editor, help, error);
+for (const input of [nameInput, timezoneInput, localeInput, languagesInput]) input.addEventListener("input", () => { editorDirty = true; selectionChanged(); });
+for (const input of [timezoneMode.input, languageMode.input]) input.addEventListener("change", () => { editorDirty = true; selectionChanged(); syncModeInputs(); });
 selector.addEventListener("change", () => {
   if (editorDirty && !window.confirm("切换组合会丢弃尚未保存的编辑，是否继续？")) { selector.value = selectedId; return; }
-  selectedId = selector.value; editorDirty = false; fillEditor(); showPreview(); setWorking(false);
+  selectionChanged(); selectedId = selector.value; editorDirty = false; fillEditor(); showPreview(); setWorking(false);
 });
+
+function selectionChanged() {
+  selectionRevision++;
+  if (!ipWorking) ipResult.hidden = true;
+}
+function recommendationState() {
+  const life = lifecycle();
+  return JSON.stringify([data?.enabled, data?.allowed, data?.autoAllowed, life.status, life.requested,
+    life.active, life.selectedProfileId, life.cleanupPending]);
+}
+function showIpResult(text, warning = false) {
+  ipResult.textContent = text; ipResult.hidden = false; ipResult.classList.toggle("is-warning", warning);
+}
+async function detectIpRegion() {
+  if (ipWorking || working || !dataKnown) return;
+  if (editorDirty) { showIpResult("请先保存当前编辑，或切换组合放弃编辑后再查询。", true); return; }
+  const revision = selectionRevision, previous = selectedId, state = recommendationState();
+  // Request only the disclosed provider origin, directly from this click.
+  const granting = chrome.permissions.request({ origins: [IP_LOOKUP_ORIGIN] });
+  ipWorking = true; ipDetect.disabled = true;
+  showIpResult("正在查询出口国家与时区…");
+  try {
+    if (!await granting) throw new Error("未授权查询服务，没有发送出口位置查询。");
+    if (selectionRevision !== revision) { showIpResult("设置已变化，未继续查询。可再次点击自动选择。"); return; }
+    const result = await send({ type: "regionIpRecommend" });
+    // Do not let a late response replace edits, a manual choice, or pause/stop.
+    if (working || selectionRevision !== revision) { showIpResult("查询已完成；你已修改设置，保留当前选择。"); return; }
+    if (!await refresh() || selectionRevision !== revision || editorDirty || selectedId !== previous || recommendationState() !== state) {
+      showIpResult("查询期间设置或权限已变化，保留当前选择；请重新查询。", true); return;
+    }
+    let country = result.countryCode;
+    try { country = new Intl.DisplayNames(["zh-CN"], { type: "region" }).of(country) || country; } catch {}
+    const location = `${country} · ${result.timezone}`;
+    const profile = data.profiles?.find(item => item.id === result.profileId);
+    if (!profile) { showIpResult(`${location}\n暂无对应预设，请手动选择或自定义。`, true); return; }
+    selectedId = profile.id; selector.value = selectedId; fillEditor(); showPreview(); setWorking(false);
+    showIpResult(`${location}\n已选中「${profile.name}」，${data.enabled === false ? "恢复总开关后再启用" : "点击“启用并刷新”后生效"}。语言沿用预设，可手动调整。\n仅代表本次查询出口；分流可能不同，换节点后请重新查询。`);
+  } catch (reason) { showIpResult(reason.message || "出口位置查询失败，请稍后重试。", true); }
+  finally { ipWorking = false; ipDetect.disabled = working || !dataKnown; }
+}
 
 function selectedProfile() { return data?.profiles?.find(profile => profile.id === selectedId); }
 function isNative(profile, dimension) { return profile?.[`${dimension}Mode`] === "native"; }
@@ -139,6 +186,7 @@ function setWorking(value) {
   for (const control of panel.querySelectorAll("button, input, select")) control.disabled = value || !dataKnown;
   checkButton.disabled = value;
   detailButton.disabled = false;
+  ipDetect.disabled = value || !dataKnown || ipWorking;
   if (!value) {
     applyButton.disabled = !dataKnown || !selectedProfile() || data?.enabled === false && !allNative(selectedProfile()) || cleanupPending();
     stopButton.disabled = !dataKnown || !(lifecycle().requested || lifecycle().active || cleanupPending());
@@ -233,7 +281,7 @@ async function refresh(selectId = null) {
   finally { if (requestId === refreshId) setWorking(false); }
 }
 async function action(message) {
-  if (working || !dataKnown) return; setWorking(true); error.hidden = true;
+  if (working || !dataKnown) return; selectionChanged(); setWorking(true); error.hidden = true;
   try { await send(message); await refresh(); }
   catch (reason) { await refresh(); showError(reason); }
   finally { setWorking(false); window.dispatchEvent(new Event("region-settings-changed")); }
@@ -265,6 +313,7 @@ async function checkHeader() {
 }
 async function enableSelected() {
   if (!dataKnown || !selectedProfile() || working) return;
+  selectionChanged();
   // First asynchronous call preserves the explicit click for optional permissions.
   const granting = allNative(selectedProfile()) ? Promise.resolve(true) : chrome.permissions.request(REGION_PERMISSIONS);
   setWorking(true); error.hidden = true;
@@ -276,6 +325,7 @@ async function enableSelected() {
 }
 async function retryCleanup() {
   if (working || !dataKnown) return;
+  selectionChanged();
   // Keep a user-gesture recovery path if optional permissions themselves were revoked.
   // Permission restoration authorizes cleanup only; it must never select/apply a profile.
   const granting = cleanupPending() ? chrome.permissions.request(REGION_PERMISSIONS) : Promise.resolve(true);
@@ -288,6 +338,7 @@ async function retryCleanup() {
 }
 async function saveProfile(replace) {
   if (working || !dataKnown) return;
+  selectionChanged();
   setWorking(true); error.hidden = true;
   try {
     const profile = { name: nameInput.value.trim(),
@@ -309,7 +360,7 @@ async function deleteProfile() {
   await action({ type: "regionDelete", profileId: selectedId, tabId });
 }
 
-window.addEventListener("privacy-settings-changed", () => { if (!working) refresh(); });
+window.addEventListener("privacy-settings-changed", () => { selectionChanged(); if (!working) refresh(); });
 window.addEventListener("focus", () => { if (!working) refresh(); });
 window.addEventListener("tracelite-ui-ready", () => {
   if (!dataKnown || !data) return;
