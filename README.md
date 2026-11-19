@@ -23,7 +23,7 @@
 
 ## 安装与恢复
 
-从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.4.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
+从 [Releases](https://github.com/pw0rld/tracelite/releases/latest) 下载 `TraceLite-v0.9.5.zip`。这是纯扩展包，应先解压到固定文件夹，再选择**直接包含 `manifest.json` 的文件夹**；不要将 ZIP 文件交给“加载已解压的扩展程序”。`-source.zip` 是源码包，不是安装目录；GitHub 自动生成的 Source code ZIP 也是源码包。已有源码目录也可直接加载其中的 `extension/`。
 
 1. 在 Chrome 地址栏打开 `chrome://extensions`，开启右上角“开发者模式”。
 2. 点击“加载已解压的扩展程序”：安装包选择解压后直接包含 `manifest.json` 的文件夹；克隆源码则选择项目内的 `extension/`。
@@ -46,9 +46,9 @@ npm run verify:package
 
 产物位于 `dist/`：平铺的 `TraceLite-v版本号.zip`、`TraceLite-v版本号-source.zip`，以及 `SHA256SUMS.txt`。安装包只包含扩展运行文件；源码包包含代码和明确选入 `docs/images/` 的公开文档图片。`verification/` 中的本地检测记录、协作会话、浏览器资料和密钥不随包发布。macOS 进入 ZIP 所在目录后，可用 `shasum -a 256 -c SHA256SUMS.txt` 核对下载。
 
-每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
+每次推送 `main`、提交 Pull Request 或手动运行 Actions，CI 会跑单测、核对生成脚本、验证 ZIP，并在临时 Chrome 中检查弹窗与暂停恢复等流程。中文字体准备有时间上限，失败仅影响截图字体，功能测试仍须通过。浏览器首次启动最多等待 45 秒，后续 CDP 命令仍限 10 秒；进程提前退出立即报错。Linux 默认使用 `google-chrome`，也可通过 `CHROME_BIN` 指定浏览器可执行文件；本机可运行 `npm run test:chrome`。
 
-创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.4`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
+创建并推送与 `extension/manifest.json` 版本一致的标签（例如 `v0.9.5`）后，只有测试、打包和 Chrome 检查全部成功，才会创建 GitHub Release 并附上 ZIP 和校验文件。普通推送的包保存在对应 Actions 运行的 Artifacts 中；便于安装的直接下载文件请从 Releases 获取。此流程不自动上架 Chrome 商店。
 
 暂停保护会清除**本扩展自己的设置覆盖**，恢复由 Chrome、用户、策略和其他扩展决定的值，而非强制把项目改为开启。恢复保护会重新应用所选设置。禁用或卸载扩展也会撤销其 ChromeSetting 覆盖。[设置生命周期](https://developer.chrome.com/docs/extensions/reference/api/types)
 

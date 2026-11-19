@@ -91,8 +91,19 @@ const chrome = spawn(chromeBinary, [
   "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--disable-component-update", "--disable-sync", "--disable-default-apps",
   "--disable-features=MediaRouter,OptimizationHints,AutofillServerCommunication", "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=127.0.0.1", "about:blank"
 ], { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
-let id = 0, buffer = "", stderr = ""; const pending = new Map();
+let id = 0, buffer = "", stderr = "", browserFailure = null; const pending = new Map();
+const failBrowser = message => {
+  browserFailure = new Error(message + (stderr ? "\n" + stderr : ""));
+  for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(browserFailure); }
+  pending.clear();
+};
 chrome.stderr.on("data", data => { stderr = (stderr + data).slice(-4000); });
+chrome.once("error", error => failBrowser("Browser launch failed: " + error.message));
+chrome.once("exit", (code, signal) => {
+  report.browserExit = { code, signal };
+  failBrowser(`Browser exited (code ${code}, signal ${signal || "none"})`);
+});
+chrome.stdio[3].on("error", error => failBrowser("Browser command pipe failed: " + error.message));
 chrome.stdio[4].on("data", data => {
   buffer += data.toString(); let end;
   while ((end = buffer.indexOf("\0")) >= 0) {
@@ -102,8 +113,9 @@ chrome.stdio[4].on("data", data => {
     message.error ? entry.reject(new Error(JSON.stringify(message.error))) : entry.resolve(message.result);
   }
 });
-const cdp = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-  const next = ++id, timer = setTimeout(() => { pending.delete(next); reject(new Error(method + " timed out: " + stderr)); }, 10000);
+const cdp = (method, params = {}, sessionId, timeoutMs = 10000) => new Promise((resolve, reject) => {
+  if (browserFailure) { reject(browserFailure); return; }
+  const next = ++id, timer = setTimeout(() => { pending.delete(next); reject(new Error(method + " timed out after " + timeoutMs + " ms: " + stderr)); }, timeoutMs);
   pending.set(next, { resolve, reject, timer });
   chrome.stdio[3].write(JSON.stringify({ id: next, method, params, ...(sessionId ? { sessionId } : {}) }) + "\0");
 });
@@ -126,7 +138,9 @@ const waitFor = async (fn, name) => {
 };
 
 try {
-  report.browser = (await cdp("Browser.getVersion")).product;
+  // Linux CI may need more time to start Chrome than to execute a CDP command.
+  // Keep this bound separate from command and page/Worker assertion deadlines.
+  report.browser = (await cdp("Browser.getVersion", {}, undefined, 45000)).product;
   const { id: extensionId } = await cdp("Extensions.loadUnpacked", { path: extension });
   const popup = await open(`chrome-extension://${extensionId}/popup.html`);
   await waitFor(() => evaluate("Boolean(globalThis.chrome?.runtime)", popup.sessionId), "extension popup");

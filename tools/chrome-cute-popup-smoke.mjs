@@ -62,8 +62,19 @@ try {
     "--host-resolver-rules=" + hosts.map(host => `MAP ${host} 127.0.0.1`).join(", "),
     "--proxy-server=http://127.0.0.1:9", "--proxy-bypass-list=" + hosts.join(";"), "about:blank"],
   { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
-  let id = 0, buffer = ""; const pending = new Map();
+  let id = 0, buffer = "", browserFailure = null; const pending = new Map();
+  const failBrowser = message => {
+    browserFailure = new Error(message + (stderr ? "\n" + stderr : ""));
+    for (const entry of pending.values()) { clearTimeout(entry.timer); entry.reject(browserFailure); }
+    pending.clear();
+  };
   browser.stderr.on("data", value => { stderr = (stderr + value).slice(-4000); });
+  browser.once("error", error => failBrowser("Browser launch failed: " + error.message));
+  browser.once("exit", (code, signal) => {
+    report.browserExit = { code, signal };
+    failBrowser(`Browser exited (code ${code}, signal ${signal || "none"})`);
+  });
+  browser.stdio[3].on("error", error => failBrowser("Browser command pipe failed: " + error.message));
   browser.stdio[4].on("data", value => {
     buffer += value.toString(); let end;
     while ((end = buffer.indexOf("\0")) >= 0) {
@@ -82,8 +93,9 @@ try {
       message.error ? entry.reject(new Error(JSON.stringify(message.error))) : entry.resolve(message.result);
     }
   });
-  cdp = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
-    const next = ++id, timer = setTimeout(() => { pending.delete(next); reject(new Error(method + " timed out: " + stderr)); }, 10000);
+  cdp = (method, params = {}, sessionId, timeoutMs = 10000) => new Promise((resolve, reject) => {
+    if (browserFailure) { reject(browserFailure); return; }
+    const next = ++id, timer = setTimeout(() => { pending.delete(next); reject(new Error(method + " timed out after " + timeoutMs + " ms: " + stderr)); }, timeoutMs);
     pending.set(next, { resolve, reject, timer }); browser.stdio[3].write(JSON.stringify({ id: next, method, params, ...(sessionId ? { sessionId } : {}) }) + "\0");
   });
   const evaluate = async (expression, sessionId, userGesture = false) => {
@@ -172,7 +184,9 @@ try {
       `${theme} ${context}: ${sample.selector}[${sample.index}] contrast ${sample.ratio.toFixed(2)} < 4.5 (${sample.text})`);
   };
 
-  report.browser = (await cdp("Browser.getVersion")).product;
+  // Cold-starting Chrome on a shared Linux runner can take longer than a CDP
+  // operation. Bound startup separately; all subsequent commands keep 10 s.
+  report.browser = (await cdp("Browser.getVersion", {}, undefined, 45000)).product;
   const extensionId = (await cdp("Extensions.loadUnpacked", { path: extension })).id;
   const controller = await open(`chrome-extension://${extensionId}/cute-probe.html`);
   await waitFor(() => evaluate("!!globalThis.chrome?.runtime", controller.sessionId), "extension controller");
