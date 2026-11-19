@@ -1,10 +1,5 @@
 #region-panel { background: var(--surface); }
 .region-intro { margin-top: 5px; }
-.region-ip-picker { margin-top: 13px; padding: 11px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
-.region-ip-picker > button { min-height: 32px; padding: 5px 9px; font-size: 11px; }
-.region-ip-picker > .hint { margin: 7px 0 0; }
-.region-ip-result { margin: 9px 0 0; white-space: pre-line; overflow-wrap: anywhere; font-size: 11px; line-height: 1.7; color: var(--text); }
-.region-ip-result.is-warning { color: var(--warn); }
 body:not(.manage-view) .region-intro { display: none; }
 .region-selection { display: flex; gap: 8px; margin: 13px 0 8px; align-items: center; }
 #region-profile { flex: 1; min-width: 0; }

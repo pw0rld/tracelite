@@ -3,7 +3,6 @@ import { createRegions, isRegionDocumentSender } from "./regions.js";
 import { summarizeState } from "./status.js";
 import { earlyStopTokens } from "./region-early.js";
 import { createHeaderCheck } from "./header-check.js";
-import { createRegionIpLookup } from "./region-ip.js";
 import { createRequestProtection } from "./request-protection.js";
 import { createSiteCleanup } from "./site-cleanup.js";
 import { withTimeout } from "./rpc.js";
@@ -12,7 +11,6 @@ const regions = createRegions(chrome);
 const headerCheck = createHeaderCheck(chrome);
 const protection = createRequestProtection(chrome);
 const siteCleanup = createSiteCleanup(chrome);
-let regionIpLookup = null;
 
 let queue = Promise.resolve();
 const exclusive = task => {
@@ -129,15 +127,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   }
   // Only our own extension documents may change browser settings.
   if (sender.id !== chrome.runtime.id || !sender.url?.startsWith(chrome.runtime.getURL(""))) return false;
-  if (message?.type === "regionIpRecommend") {
-    // An explicit popup query is advisory only. Network work must never hold
-    // the mutation queue or accept an endpoint supplied by a caller.
-    Promise.resolve().then(() => {
-      regionIpLookup ||= createRegionIpLookup(chrome);
-      return regionIpLookup.lookup();
-    }).then(data => respond({ ok: true, data }), error => respond({ ok: false, error: error.message }));
-    return true;
-  }
   if (["cleanupPrepare", "cleanupStart", "cleanupStatus"].includes(message?.type)) {
     // Browser data removal may take tens of seconds. Its one-shot job must
     // never occupy the settings queue or delay pause/permission cleanup.

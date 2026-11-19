@@ -1,6 +1,5 @@
 // Real extension popup/drawer regression. Only authored loopback fixtures and a
-// disposable browser profile are used; the IP provider reply is intercepted
-// locally. No daily browser or external site data is accessed.
+// disposable browser profile are used; no daily browser or external site data.
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, writeFile, mkdir, cp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,9 +25,9 @@ const profile = path.join(scratch, "profile"), extension = path.join(scratch, "e
 const hosts = ["tracelite-popup.test", "tracelite-popup-other.test"];
 const report = { scope: "Real unpacked extension popup and settings drawer on authored loopback pages only",
   browserName, setup: "Optional permissions and host access pregranted only in disposable copy; initial native permission dialogs not tested",
-  isolation: "Both .test hosts map to 127.0.0.1; only those hosts bypass a dead outbound proxy; the IP provider reply is fulfilled through CDP; no daily browser configuration",
+  isolation: "Both .test hosts map to 127.0.0.1; only those hosts bypass a dead outbound proxy; no daily browser configuration",
   stages: [], dialogs: [], screenshots: [], passed: false };
-let browser, server, cdp, ui, handleIpRequest, stderr = "";
+let browser, server, cdp, ui, stderr = "";
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const stage = (name, details = {}) => { report.stages.push({ name, ...details }); console.log("PASS " + name); };
 
@@ -84,9 +83,6 @@ try {
         // This test only cancels destructive confirmations. Real deletion scope
         // is covered separately by the existing cleanup smoke test.
         cdp("Page.handleJavaScriptDialog", { accept: false }, message.sessionId).catch(() => {}); continue;
-      }
-      if (message.method === "Fetch.requestPaused" && handleIpRequest) {
-        handleIpRequest(message).catch(error => { report.ipInterceptError = error.message; }); continue;
       }
       const entry = pending.get(message.id); if (!entry) continue;
       pending.delete(message.id); clearTimeout(entry.timer);
@@ -195,23 +191,6 @@ try {
     assert.ok(response?.ok, JSON.stringify(response)); return response.data;
   };
   await send({ type: "status" });
-  // Intercept the provider inside the temporary background worker before the
-  // popup opens. No live IP query is sent; the dead proxy also blocks outbound
-  // traffic if interception fails. The first click exercises the real service.
-  const background = (await cdp("Target.getTargets")).targetInfos.find(target =>
-    target.type === "service_worker" && target.url === `chrome-extension://${extensionId}/background.js`);
-  assert.ok(background, "extension service worker exists");
-  const worker = await cdp("Target.attachToTarget", { targetId: background.targetId, flatten: true });
-  let ipNetworkRequests = 0;
-  handleIpRequest = async message => {
-    ipNetworkRequests++;
-    assert.equal(message.params.request.url, "https://ipwho.is/?fields=success,country_code,timezone.id");
-    await cdp("Fetch.fulfillRequest", { requestId: message.params.requestId, responseCode: 200,
-      responseHeaders: [{ name: "Content-Type", value: "application/json" }],
-      body: Buffer.from(JSON.stringify({ success: true, country_code: "US", timezone: { id: "America/Chicago" } })).toString("base64")
-    }, message.sessionId);
-  };
-  await cdp("Fetch.enable", { patterns: [{ urlPattern: "https://ipwho.is/*", requestStage: "Request" }] }, worker.sessionId);
   const tab = await evaluate(`chrome.tabs.create({url:${JSON.stringify(base + "/fixture")},active:false})`, controller.sessionId);
   await evaluate(`chrome.tabs.create({url:${JSON.stringify(other + "/fixture")},active:false})`, controller.sessionId);
   ui = await open(`chrome-extension://${extensionId}/popup.html?view=manage&tab=${tab.id}`);
@@ -300,58 +279,6 @@ try {
   assert.equal(jobAfter.id, started.id); assert.equal(jobAfter.id, jobBefore.id); assert.equal(jobAfter.state, "done");
   assert.equal(await evaluate("cuteCleanupStarts", ui.sessionId), 0, "opening settings does not replay a cleanup action");
   stage("opening and closing settings preserves the existing independent cleanup job", { before: jobBefore, after: jobAfter });
-
-  await click("#manage", ui.sessionId); await click('[data-settings-tab="region"]', ui.sessionId);
-  await waitFor(() => evaluate("!!document.querySelector('#region-ip-detect')&&!document.querySelector('#region-ip-detect').disabled", ui.sessionId), "IP picker ready");
-  assert.equal(ipNetworkRequests, 0, "opening the popup and region settings does not query the provider");
-  assert.ok(await evaluate("document.querySelector('#region-ip-notice').textContent.includes('ipwho.is')", ui.sessionId), "provider is disclosed before the click");
-  const regionBeforeIp = await send({ type: "regionStatus", tabId: tab.id });
-  await click("#region-ip-detect", ui.sessionId);
-  await waitFor(() => evaluate("!document.querySelector('#region-ip-detect').disabled&&document.querySelector('#region-profile').value==='us-chicago'", ui.sessionId), "IP query selects Chicago preset");
-  assert.equal(ipNetworkRequests, 1, "one explicit click makes one fixed provider request");
-  assert.equal(report.ipInterceptError, undefined);
-  const regionAfterIp = await send({ type: "regionStatus", tabId: tab.id });
-  assert.equal(regionAfterIp.lifecycle.requested, regionBeforeIp.lifecycle.requested, "IP selection never enables region overrides");
-  assert.equal(regionAfterIp.lifecycle.active, regionBeforeIp.lifecycle.active);
-  assert.equal(regionAfterIp.lifecycle.selectedProfileId, regionBeforeIp.lifecycle.selectedProfileId, "IP selection never saves a profile");
-  await screenshot(`${outputPrefix}-ip-region.png`, ui.sessionId);
-  const ipText = ["#region-ip-notice", "#region-ip-result"];
-  await checkContrast(ipText, "light", "IP recommendation disclosure and result", ui.sessionId);
-  await checkContrast(ipText, "dark", "IP recommendation disclosure and result", ui.sessionId);
-  await setTheme("light", ui.sessionId);
-
-  // Subsequent cases simulate only the popup reply. The service's own cooldown,
-  // timeouts and permission checks have dedicated unit tests; avoiding another
-  // provider request here makes UI race tests independent of wall-clock waits.
-  await evaluate(`window.cuteIpOriginalSend=chrome.runtime.sendMessage.bind(chrome.runtime);window.cuteIpMockCalls=0;window.cuteIpReply=null;window.cuteIpHold=false;window.cuteIpFinish=null;
-    chrome.runtime.sendMessage=(...args)=>{if(args[0]?.type!=='regionIpRecommend')return cuteIpOriginalSend(...args);cuteIpMockCalls++;const reply={ok:true,data:cuteIpReply};return cuteIpHold?new Promise(resolve=>{cuteIpFinish=()=>resolve(reply);}):Promise.resolve(reply);};`, ui.sessionId);
-  await evaluate("cuteIpReply={countryCode:'DE',timezone:'Europe/Berlin',profileId:null,match:null,provider:'ipwho.is'}", ui.sessionId);
-  await click("#region-ip-detect", ui.sessionId);
-  await waitFor(() => evaluate("cuteIpMockCalls===1&&!document.querySelector('#region-ip-detect').disabled", ui.sessionId), "unknown IP region returns");
-  assert.equal(await evaluate("document.querySelector('#region-profile').value", ui.sessionId), "us-chicago", "unknown country retains the user's selection");
-  await evaluate("cuteIpHold=true;cuteIpReply={countryCode:'US',timezone:'America/New_York',profileId:'us-ny',match:'exact',provider:'ipwho.is'}", ui.sessionId);
-  await click("#region-ip-detect", ui.sessionId);
-  await waitFor(() => evaluate("typeof cuteIpFinish==='function'", ui.sessionId), "deferred IP result started");
-  await evaluate("(()=>{const e=document.querySelector('#region-profile');e.value='us-denver';e.dispatchEvent(new Event('change',{bubbles:true}));cuteIpFinish();cuteIpFinish=null;})()", ui.sessionId);
-  await waitFor(() => evaluate("!document.querySelector('#region-ip-detect').disabled", ui.sessionId), "late selection result handled");
-  assert.equal(await evaluate("document.querySelector('#region-profile').value", ui.sessionId), "us-denver", "late lookup cannot replace a manual choice");
-  await click("#region-ip-detect", ui.sessionId);
-  await waitFor(() => evaluate("typeof cuteIpFinish==='function'", ui.sessionId), "IP lookup pending before pause");
-  await send({ type: "enabled", value: false });
-  await evaluate("window.dispatchEvent(new Event('focus'))", ui.sessionId);
-  await waitFor(() => evaluate("document.querySelector('#enabled').checked===false", ui.sessionId), "popup reads global pause while lookup is pending");
-  await evaluate("cuteIpFinish();cuteIpFinish=null", ui.sessionId);
-  await waitFor(() => evaluate("!document.querySelector('#region-ip-detect').disabled", ui.sessionId), "late pause result handled");
-  assert.equal((await send({ type: "status" })).config.enabled, false, "late result cannot resume the extension");
-  assert.equal(await evaluate("document.querySelector('#region-profile').value", ui.sessionId), "us-denver", "late result preserves selection after pause");
-  assert.equal(ipNetworkRequests, 1, "unknown and race fixtures never send further network requests");
-  await evaluate("chrome.runtime.sendMessage=cuteIpOriginalSend", ui.sessionId);
-  await send({ type: "enabled", value: true });
-  await evaluate("window.dispatchEvent(new Event('focus'))", ui.sessionId);
-  await click("#settings-close", ui.sessionId);
-  stage("IP picker is explicit, selects without applying, retains unknown/manual choices and respects pause", {
-    providerRequests: ipNetworkRequests, backend: "CDP-fulfilled fixed provider response", raceCases: "popup-only simulated replies", selectedProfile: "us-denver"
-  });
 
   await send({ type: "regionApply", profileId: "us-en", tabId: tab.id });
   await evaluate("window.dispatchEvent(new Event('region-settings-changed'));window.dispatchEvent(new Event('focus'))", ui.sessionId);
